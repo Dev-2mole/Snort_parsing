@@ -103,23 +103,25 @@ public class DataParser {
     }
 
     private static void saveUrl(Sheet sheet, AtomicInteger rowNum, String sourceCodeName, 
-                            String url, Set<String> existingUrls, Pattern domainPattern) {
+                                String url, Set<String> existingUrls, Pattern domainPattern) {
         Matcher domainMatcher = domainPattern.matcher(url);
-
+                                
         if (domainMatcher.find() && existingUrls.add(url)) {
             if (!url.startsWith("http://") && !url.startsWith("https://")) {
                 url = "https://" + url; // URL에 http:// 또는 https://가 없으면 추가
             }
-
+        
             Row row = sheet.createRow(rowNum.getAndIncrement());
             row.createCell(0).setCellValue(url); // URL
+        
             for (int i = 1; i <= 6; i++) {
-                row.createCell(i).setCellValue(""); // 나머지 필드는 빈 값으로 설정
+                row.createCell(i).setCellType(CellType.BLANK); // 나머지 필드는 null로 설정
             }
+        
             row.createCell(7).setCellValue(sourceCodeName); // Source Code Name
         }
     }
-
+    
     public static void main(String[] args) {
         try {
             // 사용자로부터 파일 경로 입력받기

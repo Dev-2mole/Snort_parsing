@@ -4,13 +4,16 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.*;
 
 public class MainGUI extends JFrame {
     
     private JTextArea logArea;
-    private JCheckBox parseCheckBox, skipParseCheckBox, validationOptionsCheckBox;
+    private JCheckBox parseCheckBox, skipParseCheckBox;
     private JButton fileUploadButton, validateButton, saveResultsButton;
     private JLabel lastValidationDateLabel, lastValidationMD5Label;
     private String selectedFilePath;
@@ -45,7 +48,6 @@ public class MainGUI extends JFrame {
         validationExistingFailCheckBox = new JCheckBox("검증 (기존 Fail만)");
         validationExistingSuccessCheckBox = new JCheckBox("검증 (기존 Success만)"); 
         validateAllCheckBox = new JCheckBox("전체 검증");
-        validationOptionsCheckBox = new JCheckBox("검증 옵션");
     
         // Disable validation checkboxes initially
         validationNewURLCheckBox.setEnabled(false);
@@ -70,7 +72,7 @@ public class MainGUI extends JFrame {
         fileUploadButton = new JButton("파일 업로드");
         fileUploadButton.addActionListener(e -> uploadFile());
 
-        validateButton = new JButton("검증 진행");
+        validateButton = new JButton("실행");
         validateButton.addActionListener(e -> performValidation());
 
         saveResultsButton = new JButton("결과 저장");
@@ -118,43 +120,97 @@ public class MainGUI extends JFrame {
             selectedFilePath = selectedFile.getAbsolutePath();
             logArea.append("Selected file: " + selectedFilePath + "\n");
     
-            // MD5 비교 로직 추가
-            if (!compareFileMD5(selectedFilePath)) {
-                logArea.append("MD5 값이 다릅니다. 파일을 비교합니다.\n");
-    
-                try {
-                    // 예시 경로 (실제 경로는 상황에 맞게 수정)
-                    String oldFilePath = "C:\\Temp\\Snort_Parsing\\20231125\\ParsedData.xlsx";
-                    String newFilePath = selectedFilePath; // 또는 새로 생성된 엑셀 파일의 경로
-    
-                    FileComparator.compareExcelFiles(oldFilePath, newFilePath);
-                    logArea.append("파일 비교 완료.\n");
-                } catch (IOException e) {
-                    logArea.append("파일 비교 중 에러 발생: " + e.getMessage() + "\n");
-                }
+            // MD5 비교
+            boolean isMD5Match = compareFileMD5(selectedFilePath);
+            if (isMD5Match) {
+                logArea.append("MD5 값이 일치합니다.\n");
+            } else {
+                logArea.append("MD5 값이 다릅니다.\n");
             }
         }
     }
+    
 
     private void performValidation() {
-        if (parseCheckBox.isSelected()) {
-            logArea.append("파싱을 시작합니다...\n");
+        boolean isParseSelected = parseCheckBox.isSelected();
+        boolean isSkipParseSelected = skipParseCheckBox.isSelected();
+        
+        // oldFilePath 설정
+        String lastValidationDate = readMD5Info("Date");
+        String oldFilePath = "C:\\Temp\\Snort_Parsing\\" + lastValidationDate + "\\ParsedData.xlsx";
+        // newFilePath 설정
+        String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String newFilePath = "C:\\Temp\\Snort_Parsing\\" + today + "\\ParsedData.xlsx";
+
+        if (isParseSelected) {
+            logArea.append("파싱 및 MD5 검증을 시작합니다...\n");
             try {
-                // DataParser 클래스의 parseAndSaveData 메소드 호출
-                DataParser.parseAndSaveData(selectedFilePath);
+                DataParser.parseAndSaveData(selectedFilePath); // 파싱 수행
                 logArea.append("파싱 완료!\n");
+
+                // 파싱이 완료된 후 MD5가 다를 경우 New 체크 진행
+                if (!compareFileMD5(selectedFilePath)) {
+                    logArea.append("새로운 파일이 생성되었습니다. New 체크를 진행합니다.\n");
+
+                    // FileComparator 로직 추가
+                    FileComparator.compareExcelFiles(oldFilePath, newFilePath);
+                    logArea.append("파싱 완료: " + newFilePath + "\n");
+                    logArea.append("New 체크 진행완료 했습니다.\n");
+
+                }
             } catch (IOException e) {
                 logArea.append("파싱 중 에러 발생: " + e.getMessage() + "\n");
             }
         }
+        else if (isSkipParseSelected) {
+            logArea.append("파싱 작업을 생략합니다.\n");
+        } else {
+            logArea.append("파싱 옵션이 선택되지 않았습니다.\n");
+            return; // 파싱 옵션을 선택하지 않았을 경우 함수 종료
+
+        }// Validation 클래스 인스턴스 생성
         
-        if (validationOptionsCheckBox.isSelected()) {
-            logArea.append("검증을 시작합니다...\n");
-            // MD5Util 클래스의 calculateMD5 메소드 호출
-            String md5 = MD5Util.calculateMD5(selectedFilePath);
-            logArea.append("파일 MD5: " + md5 + "\n");
+
+        // Validation 클래스에 파싱 결과 파일 경로 전달
+        String newfolderpath = newFilePath.replace("\\ParsedData.xlsx", "");
+        Validation validation = new Validation(newfolderpath);
+        String validationOption = getValidationOption();
+
+        if (!validationOption.isEmpty()) {
+            validation.baseValidation(validationOption, isParseSelected);
+            int successCount = validation.getSuccessCount();
+            int failureCount = validation.getFailureCount();
+            logArea.append("검증 결과: 성공 " + successCount + "개, 실패 " + failureCount + "개\n");
+            logArea.append("URL 검증 완료!\n");
+        } else {
+            logArea.append("검증 옵션이 선택되지 않았습니다.\n");
         }
     }
+    
+    private String getValidationOption() {
+        StringBuilder optionBuilder = new StringBuilder();
+        if (validationNewURLCheckBox.isSelected()) {
+            optionBuilder.append("new+");
+        }
+        if (validationExistingFailCheckBox.isSelected()) {
+            optionBuilder.append("fail+");
+        }
+        if (validationExistingSuccessCheckBox.isSelected()) {
+            optionBuilder.append("success+");
+        }
+        if (validateAllCheckBox.isSelected()) {
+            optionBuilder.append("all+");
+        }
+    
+        if (optionBuilder.length() > 0) {
+            // 마지막 '+' 제거
+            optionBuilder.setLength(optionBuilder.length() - 1);
+        }
+    
+        return optionBuilder.toString();
+    }
+
+    
 
     private void saveResults() {
         Workbook workbook = new XSSFWorkbook();
