@@ -5,6 +5,8 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import javax.swing.*;
 import java.io.*;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -68,10 +70,18 @@ public class DataParser {
             saveUrl(sheet, rowNum, entry.getValue(), entry.getKey(), existingUrls, domainPattern);
         }
 
-
         reader.close();
 
-        try (FileOutputStream outputStream = new FileOutputStream("ParsedData.xlsx")) {
+        String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String savePath = "C:\\Temp\\Snort_Parsing\\" + today + "\\";
+
+        // 해당 경로가 없다면 생성
+        File directory = new File(savePath);
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
+
+        try (FileOutputStream outputStream = new FileOutputStream(savePath + "ParsedData.xlsx")) {
             workbook.write(outputStream);
         }
         workbook.close();
