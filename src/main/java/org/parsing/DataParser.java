@@ -115,7 +115,7 @@ public class DataParser {
             row.createCell(0).setCellValue(url); // URL
         
             for (int i = 1; i <= 6; i++) {
-                row.createCell(i).setCellType(CellType.BLANK); // 나머지 필드는 null로 설정
+                row.createCell(i).setCellValue(""); // 나머지 필드는 null로 설정
             }
         
             row.createCell(7).setCellValue(sourceCodeName); // Source Code Name
