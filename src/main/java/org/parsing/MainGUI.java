@@ -64,18 +64,32 @@ public class MainGUI extends JFrame {
         validationExistingSuccessCheckBox.setEnabled(false);
         validateAllCheckBox.setEnabled(false);
     
-       // Add parsing listener to parsing checkboxes
-        ItemListener parsingListener = e -> {
-            boolean isParsingSelected = parseCheckBox.isSelected() || skipParseCheckBox.isSelected();
-            validationNewURLCheckBox.setEnabled(isParsingSelected);
-            validationExistingFailCheckBox.setEnabled(isParsingSelected);
-            validationExistingSuccessCheckBox.setEnabled(isParsingSelected);
-            validateAllCheckBox.setEnabled(isParsingSelected);
+        // 체크박스 리스너
+        ItemListener parseListener = e -> {
+            if (parseCheckBox.isSelected()) {
+                skipParseCheckBox.setEnabled(false);
+            } else {
+                skipParseCheckBox.setEnabled(true);
+            }
         };
 
-        // Add the listener to the parse and skip parse checkboxes
+        // 파싱관련 체크박스 리스너
+        ItemListener parsingListener = e -> {
+            boolean isEitherSelected = parseCheckBox.isSelected() || skipParseCheckBox.isSelected();
+
+            skipParseCheckBox.setEnabled(!parseCheckBox.isSelected());
+            parseCheckBox.setEnabled(!skipParseCheckBox.isSelected());
+
+            setValidationCheckBoxesEnabled(isEitherSelected);
+            updateCheckBoxesBasedOnParsingSelection();
+        };
+
+        // 리스너 추가
         parseCheckBox.addItemListener(parsingListener);
         skipParseCheckBox.addItemListener(parsingListener);
+        
+        // 초기 상태에서는 모든 체크박스 비활성화
+        setAllCheckBoxesEnabled(false);
 
         // 파일 업로드, 검증 및 결과 저장 버튼 초기화
         fileUploadButton = new JButton("파일 업로드");
@@ -120,6 +134,41 @@ public class MainGUI extends JFrame {
         setVisible(true);
     }
 
+    private void setParsingCheckBoxesEnabled(boolean enable) {
+        parseCheckBox.setEnabled(enable);
+        skipParseCheckBox.setEnabled(enable);
+    }
+
+    private void updateCheckBoxesBasedOnParsingSelection() {
+        boolean isEitherSelected = parseCheckBox.isSelected() || skipParseCheckBox.isSelected();
+        
+        skipParseCheckBox.setEnabled(!parseCheckBox.isSelected());
+        parseCheckBox.setEnabled(!skipParseCheckBox.isSelected());
+        
+        setValidationCheckBoxesEnabled(isEitherSelected);
+        if (!isEitherSelected) {
+            clearValidationCheckBoxes();
+        }
+    }
+    private void clearValidationCheckBoxes() {
+        validationNewURLCheckBox.setSelected(false);
+        validationExistingFailCheckBox.setSelected(false);
+        validationExistingSuccessCheckBox.setSelected(false);
+        validateAllCheckBox.setSelected(false);
+    }
+
+    private void setValidationCheckBoxesEnabled(boolean enable) {
+        validationNewURLCheckBox.setEnabled(enable);
+        validationExistingFailCheckBox.setEnabled(enable);
+        validationExistingSuccessCheckBox.setEnabled(enable);
+        validateAllCheckBox.setEnabled(enable);
+    }
+
+    private void setAllCheckBoxesEnabled(boolean enable) {
+        setParsingCheckBoxesEnabled(enable);
+        setValidationCheckBoxesEnabled(enable);
+    }
+
     // 이 메소드는 파일 업로드 버튼의 ActionListener에서 호출됩니다.
     private void uploadFile() {
         JFileChooser fileChooser = new JFileChooser();
@@ -146,7 +195,13 @@ public class MainGUI extends JFrame {
                 } else {
                     logArea.append("MD5 값이 다릅니다.\n");
                 }
+                // 파일 업로드 성공 시 체크박스 활성화
+                setParsingCheckBoxesEnabled(true);
             }
+        }
+        else{
+            // 파일 업로드 실패 시 체크박스 비활성화
+            setAllCheckBoxesEnabled(false);
         }
     }
     
