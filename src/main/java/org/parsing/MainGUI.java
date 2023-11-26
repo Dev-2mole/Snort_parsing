@@ -237,12 +237,10 @@ public class MainGUI extends JFrame {
         }
     }
     
-
+    // 파싱 로직 진행
     private void performValidation() {
         boolean isParseSelected = parseCheckBox.isSelected();
         boolean isSkipParseSelected = skipParseCheckBox.isSelected();
-        
-        
         if (isParseSelected) {
             logArea.append("파싱 및 MD5 검증을 시작합니다...\n");
             try {
