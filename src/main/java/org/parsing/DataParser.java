@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
 
 public class DataParser {
 
-    // 파일 경로를 매개변수로 받는 메소드로 수정
+    // 파일 경로를 매개변수
     public static void parseAndSaveData(String filePath) throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader(filePath));
 

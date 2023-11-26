@@ -1,6 +1,8 @@
 package org.parsing;
 
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
@@ -21,6 +23,13 @@ public class MainGUI extends JFrame {
     private JCheckBox validationExistingFailCheckBox; // 검증 (기존 Fail만)
     private JCheckBox validationExistingSuccessCheckBox; // 검증 (기존 Succes만)
     private JCheckBox validateAllCheckBox;           // 전체 검증
+    
+    // oldFilePath 설정
+    String lastValidationDate = readMD5Info("Date");
+    String oldFilePath = "C:\\Temp\\Snort_Parsing\\" + lastValidationDate + "\\ParsedData.xlsx";
+    // newFilePath 설정
+    String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+    String newFilePath = "C:\\Temp\\Snort_Parsing\\" + today + "\\ParsedData.xlsx";
 
     public MainGUI() {
         // Initialize the GUI components
@@ -76,7 +85,7 @@ public class MainGUI extends JFrame {
         validateButton.addActionListener(e -> performValidation());
 
         saveResultsButton = new JButton("결과 저장");
-        saveResultsButton.addActionListener(e -> saveResults());
+        saveResultsButton.addActionListener(e -> saveResults(newFilePath));
 
         // controlPanel 초기화 및 컴포넌트 추가
         JPanel controlPanel = new JPanel();
@@ -117,15 +126,26 @@ public class MainGUI extends JFrame {
         int returnValue = fileChooser.showOpenDialog(this);
         if (returnValue == JFileChooser.APPROVE_OPTION) {
             File selectedFile = fileChooser.getSelectedFile();
-            selectedFilePath = selectedFile.getAbsolutePath();
-            logArea.append("Selected file: " + selectedFilePath + "\n");
-    
-            // MD5 비교
-            boolean isMD5Match = compareFileMD5(selectedFilePath);
-            if (isMD5Match) {
-                logArea.append("MD5 값이 일치합니다.\n");
+            String fileName = selectedFile.getName();
+
+            // 파일 이름 확인
+            if (!fileName.startsWith("snort_out")) {
+                // 경고 메시지 표시
+                JOptionPane.showMessageDialog(this, 
+                    "업로드된 파일 이름이 'snort_out'이 아닙니다.", 
+                    "경고", 
+                    JOptionPane.WARNING_MESSAGE);
             } else {
-                logArea.append("MD5 값이 다릅니다.\n");
+                selectedFilePath = selectedFile.getAbsolutePath();
+                logArea.append("Selected file: " + selectedFilePath + "\n");
+                
+                // MD5 비교
+                boolean isMD5Match = compareFileMD5(selectedFilePath);
+                if (isMD5Match) {
+                    logArea.append("MD5 값이 일치합니다.\n");
+                } else {
+                    logArea.append("MD5 값이 다릅니다.\n");
+                }
             }
         }
     }
@@ -135,13 +155,7 @@ public class MainGUI extends JFrame {
         boolean isParseSelected = parseCheckBox.isSelected();
         boolean isSkipParseSelected = skipParseCheckBox.isSelected();
         
-        // oldFilePath 설정
-        String lastValidationDate = readMD5Info("Date");
-        String oldFilePath = "C:\\Temp\\Snort_Parsing\\" + lastValidationDate + "\\ParsedData.xlsx";
-        // newFilePath 설정
-        String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        String newFilePath = "C:\\Temp\\Snort_Parsing\\" + today + "\\ParsedData.xlsx";
-
+        
         if (isParseSelected) {
             logArea.append("파싱 및 MD5 검증을 시작합니다...\n");
             try {
@@ -182,6 +196,14 @@ public class MainGUI extends JFrame {
             int failureCount = validation.getFailureCount();
             logArea.append("검증 결과: 성공 " + successCount + "개, 실패 " + failureCount + "개\n");
             logArea.append("URL 검증 완료!\n");
+            MD5Updater.updateMD5AndDate(selectedFilePath, "Default_Snort_out_MD5.txt");
+            logArea.append("최신 검증 날짜와 MD5 값이 갱신되었습니다.\n");
+            // 최신 MD5 정보와 날짜를 라벨에 반영
+            String newDate = readMD5Info("Date");
+            String newMD5 = readMD5Info("MD5");
+
+            lastValidationDateLabel.setText("최근 검증 날짜: " + newDate);
+            lastValidationMD5Label.setText("기본 MD5: " + newMD5);
         } else {
             logArea.append("검증 옵션이 선택되지 않았습니다.\n");
         }
@@ -211,21 +233,44 @@ public class MainGUI extends JFrame {
     }
 
     
-
-    private void saveResults() {
-        Workbook workbook = new XSSFWorkbook();
-        Sheet sheet = workbook.createSheet("Results");
-        Row row = sheet.createRow(0);
-        Cell cell = row.createCell(0);
-        cell.setCellValue("Some Result");
-
-        try (FileOutputStream out = new FileOutputStream(new File("Results.xlsx"))) {
-            workbook.write(out);
-            logArea.append("Results saved to Excel.\n");
+    private void saveResults(String newFilePath) {
+        try {
+            // 원본 파일 읽기
+            FileInputStream inputStream = new FileInputStream(new File(newFilePath));
+            Workbook workbook = new XSSFWorkbook(inputStream);
+    
+            // 사용자에게 저장할 파일 위치 선택 요청
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setDialogTitle("저장할 파일 위치 선택");
+            fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            fileChooser.setAcceptAllFileFilterUsed(false);
+            fileChooser.addChoosableFileFilter(new FileNameExtensionFilter("Excel Files", "xlsx"));
+    
+            int userSelection = fileChooser.showSaveDialog(null);
+    
+            if (userSelection == JFileChooser.APPROVE_OPTION) {
+                File fileToSave = fileChooser.getSelectedFile();
+                String saveFilePath = fileToSave.getAbsolutePath();
+                // 확장자 .xlsx 추가 (필요한 경우)
+                if (!saveFilePath.endsWith(".xlsx")) {
+                    saveFilePath += ".xlsx";
+                }
+    
+                try (FileOutputStream out = new FileOutputStream(new File(saveFilePath))) {
+                    workbook.write(out);
+                    logArea.append("Results saved to: " + saveFilePath + "\n");
+                }
+            }
+    
+            // 자원 해제
+            workbook.close();
+            inputStream.close();
+    
         } catch (IOException e) {
             logArea.append("Failed to save results: " + e.getMessage() + "\n");
         }
     }
+    
 
     private String readMD5Info(String key) {
         File file = new File("Default_Snort_out_MD5.txt"); // Assuming the file is in the project root directory
@@ -248,7 +293,6 @@ public class MainGUI extends JFrame {
         String uploadedFileMD5 = MD5Util.calculateMD5(uploadedFilePath);
         return existingMD5 != null && existingMD5.equals(uploadedFileMD5);
     }
-    
     
     
 
