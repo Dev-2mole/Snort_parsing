@@ -6,28 +6,28 @@ import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public class MD5Updater {
+public class SHA256Updater {
 
-    public static void updateMD5AndDate(String filePath, String md5FilePath) {
+    public static void updateSHA256AndDate(String filePath, String sha256FilePath) {
         try {
-            // MD5 값 계산
-            String md5 = calculateMD5(filePath);
+            // SHA-256 값 계산
+            String sha256 = calculateSHA256(filePath);
 
             // 현재 날짜 구하기
             String currentDate = new SimpleDateFormat("yyyyMMdd").format(new Date());
 
-            // MD5 값과 날짜를 파일에 저장
-            try (PrintWriter out = new PrintWriter(new FileWriter(md5FilePath))) {
+            // SHA-256 값과 날짜를 파일에 저장
+            try (PrintWriter out = new PrintWriter(new FileWriter(sha256FilePath))) {
                 out.println("Date: " + currentDate);
-                out.println("MD5: " + md5);
+                out.println("SHA256: " + sha256);
             }
         } catch (IOException | NoSuchAlgorithmException e) {
             e.printStackTrace();
         }
     }
 
-    private static String calculateMD5(String filePath) throws IOException, NoSuchAlgorithmException {
-        MessageDigest md = MessageDigest.getInstance("MD5");
+    private static String calculateSHA256(String filePath) throws IOException, NoSuchAlgorithmException {
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
         try (InputStream fis = new FileInputStream(filePath)) {
             byte[] buffer = new byte[1024];
             int nread;
@@ -35,9 +35,9 @@ public class MD5Updater {
                 md.update(buffer, 0, nread);
             }
         }
-        byte[] md5Bytes = md.digest();
+        byte[] sha256Bytes = md.digest();
         StringBuilder sb = new StringBuilder();
-        for (byte b : md5Bytes) {
+        for (byte b : sha256Bytes) {
             sb.append(String.format("%02x", b));
         }
         return sb.toString();

@@ -3,7 +3,6 @@ package org.parsing;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import javax.swing.*;
 import java.io.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -14,7 +13,7 @@ import java.util.regex.Pattern;
 
 public class DataParser {
 
-    // 파일 경로를 매개변수
+    // 파일 저장 함수로, 파일 매개변수를 받아옴
     public static void parseAndSaveData(String filePath) throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader(filePath));
 
@@ -43,7 +42,7 @@ public class DataParser {
                 currentSourceCodeName = line.substring(line.indexOf('=') + 1).trim();
                 continue;
             }
-
+            //###으로 구분 되어 있으면 신규 URL로 확인
             if (line.startsWith("###")) {
                 if (!currentUrl.isEmpty()) {
                     currentUrl = normalizeUrl(currentUrl);
@@ -52,7 +51,7 @@ public class DataParser {
                 }
                 continue;
             }
-
+            // Pattern이 들어간 라인을 만날 경우 파싱 진행
             if (line.contains("pattern =")) {
                 Matcher patternMatcher = patternRegex.matcher(line);
                 if (patternMatcher.find()) {
@@ -71,7 +70,7 @@ public class DataParser {
         }
 
         reader.close();
-
+        // 오늘 날짜의 경로 지정
         String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
         String savePath = "C:\\Temp\\Snort_Parsing\\" + today + "\\";
 
@@ -80,7 +79,7 @@ public class DataParser {
         if (!directory.exists()) {
             directory.mkdirs();
         }
-
+        // 작성된 파일을 해당 위치에 저장
         try (FileOutputStream outputStream = new FileOutputStream(savePath + "ParsedData.xlsx")) {
             workbook.write(outputStream);
         }
@@ -89,10 +88,12 @@ public class DataParser {
         System.out.println("Processing completed.");
     }
 
+    // 맨 마지막 / 삭제
     private static String normalizeUrl(String url) {
         return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
     }
 
+    // 엑셀 해더 세팅
     private static void createHeader(Sheet sheet) {
         Row headerRow = sheet.createRow(0);
         String[] headers = {"URL", "Last Check Date", "New", "Success/Failure", "Response Code/Error", 
@@ -101,34 +102,25 @@ public class DataParser {
             headerRow.createCell(i).setCellValue(headers[i]);
         }
     }
-
+    // 각 해더별 데이터 저장
     private static void saveUrl(Sheet sheet, AtomicInteger rowNum, String sourceCodeName, 
                                 String url, Set<String> existingUrls, Pattern domainPattern) {
         Matcher domainMatcher = domainPattern.matcher(url);
                                 
         if (domainMatcher.find() && existingUrls.add(url)) {
+            // URL에 http:// 또는 https://가 없으면 추가
             if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                url = "https://" + url; // URL에 http:// 또는 https://가 없으면 추가
+                url = "https://" + url; 
             }
-        
+            // URL 해더에 최종 Url 데이터 추가
             Row row = sheet.createRow(rowNum.getAndIncrement());
-            row.createCell(0).setCellValue(url); // URL
-        
+            row.createCell(0).setCellValue(url); 
+            // URL, SourceCodeName 해더를 제외한 나머지 값은 null값 입력
             for (int i = 1; i <= 6; i++) {
-                row.createCell(i).setCellValue(""); // 나머지 필드는 null로 설정
+                row.createCell(i).setCellValue("");
             }
-        
-            row.createCell(7).setCellValue(sourceCodeName); // Source Code Name
-        }
-    }
-    
-    public static void main(String[] args) {
-        try {
-            // 사용자로부터 파일 경로 입력받기
-            String filePath = JOptionPane.showInputDialog("파일 경로를 입력하세요:");
-            parseAndSaveData(filePath); // 사용자가 입력한 파일 경로로 메소드 호출
-        } catch (IOException e) {
-            e.printStackTrace();
+            // Source Code Name 해더에 소스코드 이름 입력
+            row.createCell(7).setCellValue(sourceCodeName); 
         }
     }
 }

@@ -4,11 +4,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.io.*;
 
-public class MD5Util {
-
-    public static String calculateMD5(String filePath) {
+public class SHA256Util {
+    // SHA-256 계산 메소드
+    public static String calculateSHA256(String filePath) {
         try (InputStream fis = new FileInputStream(filePath)) {
-            MessageDigest digest = MessageDigest.getInstance("MD5");
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
 
             byte[] bytesBuffer = new byte[1024];
             int bytesRead;
@@ -16,10 +16,10 @@ public class MD5Util {
                 digest.update(bytesBuffer, 0, bytesRead);
             }
 
-            byte[] md5Bytes = digest.digest();
+            byte[] shaBytes = digest.digest();
             StringBuilder sb = new StringBuilder();
-            for (byte md5Byte : md5Bytes) {
-                sb.append(String.format("%02x", md5Byte));
+            for (byte shaByte : shaBytes) {
+                sb.append(String.format("%02x", shaByte));
             }
             return sb.toString();
 
@@ -29,4 +29,3 @@ public class MD5Util {
         }
     }
 }
-

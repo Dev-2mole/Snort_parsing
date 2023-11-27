@@ -20,7 +20,7 @@ public class MainGUI extends JFrame {
     private JTextArea logArea;
     private JCheckBox parseCheckBox, skipParseCheckBox;
     private JButton fileUploadButton, validateButton, saveResultsButton;
-    private JLabel lastValidationDateLabel, lastValidationMD5Label;    
+    private JLabel lastValidationDateLabel, lastValidationSHA256Label;    
 
     private String selectedFilePath;                // 업로드 파일 경로
     private JCheckBox validationNewURLCheckBox;     // 검증 (신규 URL만)
@@ -28,8 +28,8 @@ public class MainGUI extends JFrame {
     private JCheckBox validationExistingSuccessCheckBox; // 검증 (기존 Succes만)
     private JCheckBox validateAllCheckBox;           // 전체 검증
     
-    // oldFilePath 설정 (디폴트 MD5에서 값(DATE)을 가져옴)
-    String lastValidationDate = readMD5Info("Date");
+    // oldFilePath 설정 (디폴트 SHA256에서 값(DATE)을 가져옴)
+    String lastValidationDate = readSHA256Info("Date");
     String oldFilePath = "C:\\Temp\\Snort_Parsing\\" + lastValidationDate + "\\ParsedData.xlsx";
     // newFilePath 설정 (실행하는 오늘 날짜 가져옴)
     String today = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
@@ -52,11 +52,11 @@ public class MainGUI extends JFrame {
 
         Font font = new Font("맑은 고딕", Font.BOLD, 12);
     
-        // 가장 마지막에 검증한 날짜와, MD5 해시값을 가져온다. 
-        lastValidationDateLabel = new JLabel("  최근 검증 날짜: " + readMD5Info("Date"));
+        // 가장 마지막에 검증한 날짜와, SHA256 해시값을 가져온다. 
+        lastValidationDateLabel = new JLabel("  최근 검증 날짜: " + readSHA256Info("Date"));
         lastValidationDateLabel.setFont(font);
-        lastValidationMD5Label = new JLabel("  MD5: " + readMD5Info("MD5"));
-        lastValidationMD5Label.setFont(font);
+        lastValidationSHA256Label = new JLabel("  SHA256: " + readSHA256Info("SHA256"));
+        lastValidationSHA256Label.setFont(font);
     
         // 로그 화면 영역
         logArea = new JTextArea(20, 30);
@@ -145,10 +145,10 @@ public class MainGUI extends JFrame {
         add(checkBoxPanel, BorderLayout.EAST);
         add(controlPanel, BorderLayout.SOUTH);
 
-        // 패널 구성요소 추가 : 최근검증날짜,MD5
+        // 패널 구성요소 추가 : 최근검증날짜,SHA256
         JPanel statusPanel = new JPanel(new GridLayout(0, 1));
         statusPanel.add(lastValidationDateLabel);
-        statusPanel.add(lastValidationMD5Label);
+        statusPanel.add(lastValidationSHA256Label);
 
         // Add panels to the frame
         add(statusPanel, BorderLayout.NORTH);
@@ -220,12 +220,12 @@ public class MainGUI extends JFrame {
                 selectedFilePath = selectedFile.getAbsolutePath();
                 logArea.append("Selected file: " + selectedFilePath + "\n");
                 
-                // MD5 비교
-                boolean isMD5Match = compareFileMD5(selectedFilePath);
-                if (isMD5Match) {
-                    logArea.append("MD5 값이 일치합니다.\n");
+                // SHA256 비교
+                boolean isSHA256Match = compareFileSHA256(selectedFilePath);
+                if (isSHA256Match) {
+                    logArea.append("SHA256 값이 일치합니다.\n");
                 } else {
-                    logArea.append("MD5 값이 다릅니다.\n");
+                    logArea.append("SHA256 값이 다릅니다.\n");
                 }
                 // 파일 업로드 성공 시 체크박스 활성화
                 setParsingCheckBoxesEnabled(true);
@@ -242,13 +242,13 @@ public class MainGUI extends JFrame {
         boolean isParseSelected = parseCheckBox.isSelected();
         boolean isSkipParseSelected = skipParseCheckBox.isSelected();
         if (isParseSelected) {
-            logArea.append("파싱 및 MD5 검증을 시작합니다...\n");
+            logArea.append("파싱 및 SHA256 검증을 시작합니다...\n");
             try {
                 DataParser.parseAndSaveData(selectedFilePath); // 파싱 수행
                 logArea.append("파싱 완료!\n");
 
-                // 파싱이 완료된 후 MD5가 다를 경우 New 체크 진행
-                if (!compareFileMD5(selectedFilePath)) {
+                // 파싱이 완료된 후 SHA256가 다를 경우 New 체크 진행
+                if (!compareFileSHA256(selectedFilePath)) {
                     logArea.append("새로운 파일이 생성되었습니다. New 체크를 진행합니다.\n");
 
                     // FileComparator 로직 추가
@@ -281,19 +281,20 @@ public class MainGUI extends JFrame {
             int failureCount = validation.getFailureCount();
             logArea.append("검증 결과: 성공 " + successCount + "개, 실패 " + failureCount + "개\n");
             logArea.append("URL 검증 완료!\n");
-            MD5Updater.updateMD5AndDate(selectedFilePath, "Default_Snort_out_MD5.txt");
-            logArea.append("최신 검증 날짜와 MD5 값이 갱신되었습니다.\n");
-            // 최신 MD5 정보와 날짜를 라벨에 반영
-            String newDate = readMD5Info("Date");
-            String newMD5 = readMD5Info("MD5");
+            SHA256Updater.updateSHA256AndDate(selectedFilePath, "Default_Snort_out_SHA256.txt");
+            logArea.append("최신 검증 날짜와 SHA256 값이 갱신되었습니다.\n");
+            // 최신 SHA256 정보와 날짜를 라벨에 반영
+            String newDate = readSHA256Info("Date");
+            String newSHA256 = readSHA256Info("SHA256");
 
             lastValidationDateLabel.setText("최근 검증 날짜: " + newDate);
-            lastValidationMD5Label.setText("기본 MD5: " + newMD5);
+            lastValidationSHA256Label.setText("기본 SHA256: " + newSHA256);
         } else {
             logArea.append("검증 옵션이 선택되지 않았습니다.\n");
         }
     }
     
+    // 체크박스 선택으로 
     private String getValidationOption() {
         StringBuilder optionBuilder = new StringBuilder();
         if (validationNewURLCheckBox.isSelected()) {
@@ -357,8 +358,8 @@ public class MainGUI extends JFrame {
     }
     
 
-    private String readMD5Info(String key) {
-        File file = new File("Default_Snort_out_MD5.txt"); // Assuming the file is in the project root directory
+    private String readSHA256Info(String key) {
+        File file = new File("Default_Snort_out_SHA256.txt"); // Assuming the file is in the project root directory
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String line;
             while ((line = br.readLine()) != null) {
@@ -372,15 +373,14 @@ public class MainGUI extends JFrame {
         }
         return null;
     }
-    
-    private boolean compareFileMD5(String uploadedFilePath) {
-        String existingMD5 = readMD5Info("MD5");
-        String uploadedFileMD5 = MD5Util.calculateMD5(uploadedFilePath);
-        return existingMD5 != null && existingMD5.equals(uploadedFileMD5);
+
+    // SHA256 비교 메소드
+    private boolean compareFileSHA256(String uploadedFilePath) {
+        String existingSHA256 = readSHA256Info("SHA256");
+        String uploadedFileSHA256 = SHA256Util.calculateSHA256(uploadedFilePath);
+        return existingSHA256 != null && existingSHA256.equals(uploadedFileSHA256);
     }
     
-    
-
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new MainGUI());
     }
